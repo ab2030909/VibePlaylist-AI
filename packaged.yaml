@@ -1,0 +1,209 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: VibePlaylist AI - Infrastructure
+Parameters:
+  GroqApiKey:
+    Type: String
+    Description: API Key for Groq API
+    NoEcho: true
+Resources:
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: index.html
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: FrontendBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: cloudfront.amazonaws.com
+          Action: s3:GetObject
+          Resource:
+            Fn::Sub: arn:aws:s3:::${FrontendBucket}/*
+          Condition:
+            StringEquals:
+              AWS:SourceArn:
+                Fn::Sub: 
+                  arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}
+  CloudFrontOAC:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name:
+          Fn::Sub: ${AWS::StackName}-OAC
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultRootObject: index.html
+        Origins:
+        - Id: FrontendBucketOrigin
+          DomainName:
+            Fn::GetAtt:
+            - FrontendBucket
+            - RegionalDomainName
+          S3OriginConfig:
+            OriginAccessIdentity: ''
+          OriginAccessControlId:
+            Fn::GetAtt:
+            - CloudFrontOAC
+            - Id
+        DefaultCacheBehavior:
+          TargetOriginId: FrontendBucketOrigin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+          - GET
+          - HEAD
+          - OPTIONS
+          CachedMethods:
+          - GET
+          - HEAD
+          ForwardedValues:
+            QueryString: false
+            Cookies:
+              Forward: none
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+          Action: sts:AssumeRole
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+  BackendFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+        - LambdaExecutionRole
+        - Arn
+      Runtime: nodejs20.x
+      Code:
+        S3Bucket: vibeplaylist-ai-artifacts-209186716057
+        S3Key: 0f2eb4bbabb55d818a813f0fbba98441
+      Timeout: 30
+      Environment:
+        Variables:
+          GROQ_API_KEY:
+            Ref: GroqApiKey
+  ApiGateway:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name:
+        Fn::Sub: ${AWS::StackName}-API
+  ApiGatewayResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId:
+        Ref: ApiGateway
+      ParentId:
+        Fn::GetAtt:
+        - ApiGateway
+        - RootResourceId
+      PathPart: generate
+  ApiGatewayMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId:
+        Ref: ApiGateway
+      ResourceId:
+        Ref: ApiGatewayResource
+      HttpMethod: POST
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri:
+          Fn::Sub: 
+            arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${BackendFunction.Arn}/invocations
+  ApiGatewayOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId:
+        Ref: ApiGateway
+      ResourceId:
+        Ref: ApiGatewayResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+        - StatusCode: '200'
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+            method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+            method.response.header.Access-Control-Allow-Origin: "'*'"
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      MethodResponses:
+      - StatusCode: '200'
+        ResponseParameters:
+          method.response.header.Access-Control-Allow-Headers: true
+          method.response.header.Access-Control-Allow-Methods: true
+          method.response.header.Access-Control-Allow-Origin: true
+        ResponseModels:
+          application/json: Empty
+  ApiGatewayDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+    - ApiGatewayMethod
+    - ApiGatewayOptionsMethod
+    Properties:
+      RestApiId:
+        Ref: ApiGateway
+  ApiGatewayStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: ApiGateway
+      DeploymentId:
+        Ref: ApiGatewayDeployment
+      StageName: prod
+  LambdaApiGatewayPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: BackendFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Sub: 
+          arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGateway}/*/POST/generate
+Outputs:
+  WebsiteURL:
+    Description: CloudFront Distribution Domain Name (Website URL)
+    Value:
+      Fn::Sub: https://${CloudFrontDistribution.DomainName}
+  ApiURL:
+    Description: API Gateway Endpoint URL
+    Value:
+      Fn::Sub: 
+        https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/prod/generate
+  FrontendBucketName:
+    Description: Frontend S3 Bucket Name
+    Value:
+      Ref: FrontendBucket
+  StackName:
+    Description: CloudFormation Stack Name
+    Value:
+      Ref: AWS::StackName

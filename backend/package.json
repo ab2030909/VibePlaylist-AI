@@ -1,0 +1,10 @@
+{
+  "name": "vibeplaylist-backend",
+  "version": "1.0.0",
+  "description": "Backend for VibePlaylist AI",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {}
+}

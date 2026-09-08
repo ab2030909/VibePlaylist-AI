@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VibePlaylist AI | Turn a feeling into a playlist</title>
+    <meta name="description" content="Describe your moment. Discover your vibe. AI-generated creative playlists.">
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="glow-blob blob-1"></div>
+    <div class="glow-blob blob-2"></div>
+    <div class="glow-blob blob-3"></div>
+    <div class="container">
+        <header>
+            <div class="music-icon">🎵</div>
+            <h1>VIBEPLAYLIST</h1>
+            <p class="subtitle">Turn a feeling into a playlist.</p>
+        </header>
+
+        <section class="hero">
+            <p>Describe your mood, a specific memory, or the vibe you're aiming for, and our AI will curate a personalized 8-track playlist just for you.</p>
+        </section>
+
+        <div class="main-card">
+            <main id="generator-section">
+            <section class="input-group">
+                <h2>What are you feeling?</h2>
+                <textarea id="idea-input" placeholder="Late night drive through Islamabad after a long and exhausting day..." rows="4"></textarea>
+            </section>
+
+            <section class="vibe-group">
+                <h2>Choose your vibe</h2>
+                <div class="vibe-buttons" id="vibe-buttons">
+                    <button class="vibe-btn selected" data-vibe="Chill">Chill</button>
+                    <button class="vibe-btn" data-vibe="Romantic">Romantic</button>
+                    <button class="vibe-btn" data-vibe="Sad">Sad</button>
+                    <button class="vibe-btn" data-vibe="Energetic">Energetic</button>
+                    <button class="vibe-btn" data-vibe="Dreamy">Dreamy</button>
+                    <button class="vibe-btn" data-vibe="Nostalgic">Nostalgic</button>
+                    <button class="vibe-btn" data-vibe="Focus">Focus</button>
+                </div>
+            </section>
+
+            <button id="generate-btn" class="primary-btn">
+                <span class="btn-text">✨ Create Playlist</span>
+            </button>
+            <p id="error-message" class="error-text hidden"></p>
+        </main>
+
+        <section id="loading-section" class="hidden">
+            <div class="loader"></div>
+            <p class="loading-text">Curating your soundtrack...</p>
+        </section>
+
+        <section id="result-section" class="hidden">
+            <div class="playlist-card">
+                <hr class="divider">
+                <h2 id="playlist-title" class="playlist-title">TITLE</h2>
+                <p id="playlist-desc" class="playlist-desc">Description</p>
+                <hr class="divider">
+                
+                <div id="track-list" class="track-list">
+                    <!-- Tracks will be injected here -->
+                </div>
+                
+                <hr class="divider">
+                <div class="vibe-tags">
+                    <span>VIBE</span>
+                    <span id="playlist-vibe" class="tag-text"></span>
+                </div>
+                
+                <div class="action-buttons">
+                    <button id="copy-btn" class="secondary-btn">Copy Playlist</button>
+                    <button id="reset-btn" class="secondary-btn">Create Again</button>
+                </div>
+                <hr class="divider">
+            </div>
+        </section>
+        
+        <footer>
+            <p class="disclaimer">AI-generated playlist suggestions. Song availability may vary by platform and region.</p>
+        </footer>
+        </div> <!-- End of main-card -->
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
